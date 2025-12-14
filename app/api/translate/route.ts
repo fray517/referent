@@ -12,24 +12,26 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const apiKey = process.env.OPENROUTER_API_KEY;
+        const apiKey = process.env.PERPLEXITY_API_KEY;
+        const baseUrl = process.env.PERPLEXITY_BASE_URL || 'https://api.perplexity.ai';
 
         if (!apiKey) {
             return NextResponse.json(
-                { error: 'API ключ OpenRouter не настроен' },
+                { error: 'API ключ Perplexity не настроен' },
                 { status: 500 }
             );
         }
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        const apiUrl = `${baseUrl}/chat/completions`;
+
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
             },
             body: JSON.stringify({
-                model: 'deepseek/deepseek-chat',
+                model: 'sonar-pro',
                 messages: [
                     {
                         role: 'system',
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
                 {
                     error:
                         errorData.error?.message ||
-                        `Ошибка API OpenRouter: ${response.statusText}`,
+                        `Ошибка API Perplexity: ${response.statusText}`,
                 },
                 { status: response.status }
             );

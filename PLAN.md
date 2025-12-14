@@ -121,8 +121,8 @@
 
 ### Общие требования для всех API routes:
 
-- Использовать переменную окружения `OPENROUTER_API_KEY` из `.env.local`
-- Использовать модель `deepseek/deepseek-chat`
+- Использовать переменные окружения `PERPLEXITY_API_KEY` и `PERPLEXITY_BASE_URL` из `.env.local`
+- Использовать модель `sonar-pro` (Perplexity)
 - Обрабатывать ошибки и возвращать понятные сообщения
 - Устанавливать правильные заголовки Content-Type с charset=utf-8
 - Не использовать кириллицу в HTTP заголовках
