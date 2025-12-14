@@ -12,7 +12,7 @@ interface ParseResult {
 
 export default function Home() {
     const [url, setUrl] = useState('');
-    const [result, setResult] = useState<ParseResult | null>(null);
+    const [result, setResult] = useState<ParseResult | string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [activeButton, setActiveButton] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,8 @@ export default function Home() {
         setError(null);
 
         try {
-            const response = await fetch('/api/parse', {
+            // Сначала парсим статью
+            const parseResponse = await fetch('/api/parse', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -37,13 +38,41 @@ export default function Home() {
                 body: JSON.stringify({ url: url.trim() }),
             });
 
-            const data = await response.json();
+            const parseData = await parseResponse.json();
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Ошибка при парсинге статьи');
+            if (!parseResponse.ok) {
+                throw new Error(parseData.error || 'Ошибка при парсинге статьи');
             }
 
-            setResult(data as ParseResult);
+            const parsedArticle = parseData as ParseResult;
+
+            // Если выбрана функция перевода, переводим контент
+            if (action === 'Перевести') {
+                if (!parsedArticle.content) {
+                    throw new Error('Не удалось извлечь контент статьи для перевода');
+                }
+
+                const translateResponse = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: parsedArticle.content }),
+                });
+
+                const translateData = await translateResponse.json();
+
+                if (!translateResponse.ok) {
+                    throw new Error(
+                        translateData.error || 'Ошибка при переводе статьи'
+                    );
+                }
+
+                setResult(translateData.translation);
+            } else {
+                // Для других действий показываем результат парсинга
+                setResult(parsedArticle);
+            }
         } catch (err) {
             setError(
                 err instanceof Error ? err.message : 'Произошла ошибка'
@@ -85,7 +114,7 @@ export default function Home() {
                     </div>
 
                     {/* Кнопки действий */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                         <button
                             onClick={() => handleSubmit('О чем статья?')}
                             disabled={isLoading}
@@ -205,6 +234,46 @@ export default function Home() {
                                 'Пост для Telegram'
                             )}
                         </button>
+
+                        <button
+                            onClick={() => handleSubmit('Перевести')}
+                            disabled={isLoading}
+                            className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
+                                isLoading && activeButton === 'Перевести'
+                                    ? 'bg-green-400 cursor-wait'
+                                    : activeButton === 'Перевести'
+                                    ? 'bg-green-700'
+                                    : 'bg-green-600 hover:bg-green-700 active:scale-95'
+                            } disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg`}
+                        >
+                            {isLoading && activeButton === 'Перевести' ? (
+                                <span className="flex items-center justify-center">
+                                    <svg
+                                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
+                                    </svg>
+                                    Перевод...
+                                </span>
+                            ) : (
+                                'Перевести'
+                            )}
+                        </button>
                     </div>
 
                     {/* Блок результата */}
@@ -237,7 +306,9 @@ export default function Home() {
                                             ></path>
                                         </svg>
                                         <p className="text-gray-600">
-                                            Парсинг статьи...
+                                            {activeButton === 'Перевести'
+                                                ? 'Перевод статьи...'
+                                                : 'Парсинг статьи...'}
                                         </p>
                                     </div>
                                 </div>
@@ -248,13 +319,19 @@ export default function Home() {
                                 </div>
                             ) : result ? (
                                 <div className="prose max-w-none">
-                                    <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed bg-white p-4 rounded border overflow-auto">
-                                        {JSON.stringify(result, null, 2)}
-                                    </pre>
+                                    {typeof result === 'string' ? (
+                                        <div className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed bg-white p-4 rounded border overflow-auto">
+                                            {result}
+                                        </div>
+                                    ) : (
+                                        <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed bg-white p-4 rounded border overflow-auto">
+                                            {JSON.stringify(result, null, 2)}
+                                        </pre>
+                                    )}
                                 </div>
                             ) : (
                                 <p className="text-gray-400 text-center py-12">
-                                    Результат парсинга появится здесь
+                                    Результат обработки появится здесь
                                 </p>
                             )}
                         </div>

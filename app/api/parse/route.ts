@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
             headers: {
                 'User-Agent':
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Charset': 'utf-8',
             },
         });
 
@@ -35,6 +37,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Получаем HTML с правильной кодировкой
+        // Используем text() который автоматически обрабатывает кодировку
         const html = await response.text();
         const $ = cheerio.load(html);
 
@@ -130,7 +134,11 @@ export async function POST(request: NextRequest) {
             content: content || null,
         };
 
-        return NextResponse.json(result);
+        return NextResponse.json(result, {
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+            },
+        });
     } catch (error) {
         console.error('Ошибка парсинга:', error);
         return NextResponse.json(
