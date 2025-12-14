@@ -119,6 +119,32 @@ export default function Home() {
                 }
 
                 setResult(thesesData.theses);
+            } else if (action === 'Пост для Telegram') {
+                if (!parsedArticle.content) {
+                    throw new Error('Не удалось извлечь контент статьи');
+                }
+
+                const telegramPostResponse = await fetch('/api/telegram-post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: parsedArticle.title,
+                        date: parsedArticle.date,
+                        content: parsedArticle.content,
+                    }),
+                });
+
+                const telegramPostData = await telegramPostResponse.json();
+
+                if (!telegramPostResponse.ok) {
+                    throw new Error(
+                        telegramPostData.error || 'Ошибка при создании поста'
+                    );
+                }
+
+                setResult(telegramPostData.post);
             } else {
                 // Для других действий показываем результат парсинга
                 setResult(parsedArticle);
@@ -362,6 +388,8 @@ export default function Home() {
                                                 ? 'Создание резюме...'
                                                 : activeButton === 'Тезисы'
                                                 ? 'Выделение тезисов...'
+                                                : activeButton === 'Пост для Telegram'
+                                                ? 'Создание поста...'
                                                 : 'Парсинг статьи...'}
                                         </p>
                                     </div>
