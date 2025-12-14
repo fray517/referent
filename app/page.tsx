@@ -3,11 +3,19 @@
 import { useState } from 'react';
 
 
+interface ParseResult {
+    date: string | null;
+    title: string | null;
+    content: string | null;
+}
+
+
 export default function Home() {
     const [url, setUrl] = useState('');
-    const [result, setResult] = useState('');
+    const [result, setResult] = useState<ParseResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [activeButton, setActiveButton] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (action: string) => {
         if (!url.trim()) {
@@ -17,19 +25,33 @@ export default function Home() {
 
         setIsLoading(true);
         setActiveButton(action);
-        setResult('');
+        setResult(null);
+        setError(null);
 
-        // TODO: Здесь будет подключение к AI и выполнение действия
-        // Пока что просто имитация загрузки
-        setTimeout(() => {
-            setResult(
-                `Результат для действия "${action}" будет здесь.\n` +
-                `URL: ${url}\n\n` +
-                'Функционал AI будет реализован позже.'
+        try {
+            const response = await fetch('/api/parse', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: url.trim() }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Ошибка при парсинге статьи');
+            }
+
+            setResult(data as ParseResult);
+        } catch (err) {
+            setError(
+                err instanceof Error ? err.message : 'Произошла ошибка'
             );
+        } finally {
             setIsLoading(false);
             setActiveButton(null);
-        }, 1500);
+        }
     };
 
     return (
@@ -215,19 +237,24 @@ export default function Home() {
                                             ></path>
                                         </svg>
                                         <p className="text-gray-600">
-                                            Генерация ответа...
+                                            Парсинг статьи...
                                         </p>
                                     </div>
                                 </div>
+                            ) : error ? (
+                                <div className="text-red-600 text-center py-8">
+                                    <p className="font-medium">Ошибка:</p>
+                                    <p className="mt-2">{error}</p>
+                                </div>
                             ) : result ? (
                                 <div className="prose max-w-none">
-                                    <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed">
-                                        {result}
+                                    <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed bg-white p-4 rounded border overflow-auto">
+                                        {JSON.stringify(result, null, 2)}
                                     </pre>
                                 </div>
                             ) : (
                                 <p className="text-gray-400 text-center py-12">
-                                    Результат обработки появится здесь
+                                    Результат парсинга появится здесь
                                 </p>
                             )}
                         </div>
