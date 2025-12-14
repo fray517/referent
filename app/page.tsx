@@ -46,7 +46,7 @@ export default function Home() {
 
             const parsedArticle = parseData as ParseResult;
 
-            // Если выбрана функция перевода, переводим контент
+            // Обработка различных действий
             if (action === 'Перевести') {
                 if (!parsedArticle.content) {
                     throw new Error('Не удалось извлечь контент статьи для перевода');
@@ -69,6 +69,31 @@ export default function Home() {
                 }
 
                 setResult(translateData.translation);
+            } else if (action === 'О чем статья?') {
+                if (!parsedArticle.content) {
+                    throw new Error('Не удалось извлечь контент статьи');
+                }
+
+                const summarizeResponse = await fetch('/api/summarize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: parsedArticle.title,
+                        content: parsedArticle.content,
+                    }),
+                });
+
+                const summarizeData = await summarizeResponse.json();
+
+                if (!summarizeResponse.ok) {
+                    throw new Error(
+                        summarizeData.error || 'Ошибка при создании резюме'
+                    );
+                }
+
+                setResult(summarizeData.summary);
             } else {
                 // Для других действий показываем результат парсинга
                 setResult(parsedArticle);
@@ -308,6 +333,8 @@ export default function Home() {
                                         <p className="text-gray-600">
                                             {activeButton === 'Перевести'
                                                 ? 'Перевод статьи...'
+                                                : activeButton === 'О чем статья?'
+                                                ? 'Создание резюме...'
                                                 : 'Парсинг статьи...'}
                                         </p>
                                     </div>
