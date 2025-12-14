@@ -94,6 +94,31 @@ export default function Home() {
                 }
 
                 setResult(summarizeData.summary);
+            } else if (action === 'Тезисы') {
+                if (!parsedArticle.content) {
+                    throw new Error('Не удалось извлечь контент статьи');
+                }
+
+                const thesesResponse = await fetch('/api/theses', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: parsedArticle.title,
+                        content: parsedArticle.content,
+                    }),
+                });
+
+                const thesesData = await thesesResponse.json();
+
+                if (!thesesResponse.ok) {
+                    throw new Error(
+                        thesesData.error || 'Ошибка при выделении тезисов'
+                    );
+                }
+
+                setResult(thesesData.theses);
             } else {
                 // Для других действий показываем результат парсинга
                 setResult(parsedArticle);
@@ -335,6 +360,8 @@ export default function Home() {
                                                 ? 'Перевод статьи...'
                                                 : activeButton === 'О чем статья?'
                                                 ? 'Создание резюме...'
+                                                : activeButton === 'Тезисы'
+                                                ? 'Выделение тезисов...'
                                                 : 'Парсинг статьи...'}
                                         </p>
                                     </div>
