@@ -73,8 +73,10 @@ function getFriendlyErrorMessage(
     }
 
     // Ошибки из API
-    if (error instanceof Error) {
-        const errorMessage = error.message.toLowerCase();
+    if (error instanceof Error || typeof error === 'string') {
+        const errorMessage = (
+            error instanceof Error ? error.message : error
+        ).toLowerCase();
 
         // Ошибки загрузки статьи
         if (
@@ -105,6 +107,8 @@ function getFriendlyErrorMessage(
             errorMessage.includes('резюме') ||
             errorMessage.includes('тезис') ||
             errorMessage.includes('пост') ||
+            errorMessage.includes('изображен') ||
+            errorMessage.includes('иллюстрац') ||
             errorMessage.includes('api')
         ) {
             const actionMessages: Record<string, string> = {
@@ -114,6 +118,8 @@ function getFriendlyErrorMessage(
                 Тезисы: 'Не удалось выделить тезисы. Попробуйте позже.',
                 'Пост для Telegram':
                     'Не удалось создать пост для Telegram. Попробуйте позже.',
+                Иллюстрация:
+                    'Не удалось создать иллюстрацию. Попробуйте позже.',
             };
 
             return {
@@ -134,9 +140,18 @@ function getFriendlyErrorMessage(
 }
 
 
+interface ImageResult {
+    type: 'image';
+    image: string;
+    prompt: string;
+}
+
+
 export default function Home() {
     const [url, setUrl] = useState('');
-    const [result, setResult] = useState<ParseResult | string | null>(null);
+    const [result, setResult] = useState<
+        ParseResult | string | ImageResult | null
+    >(null);
     const [isLoading, setIsLoading] = useState(false);
     const [activeButton, setActiveButton] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -168,13 +183,23 @@ export default function Home() {
     const handleCopy = async () => {
         if (!result) return;
 
-        const textToCopy =
-            typeof result === 'string'
-                ? result
-                : JSON.stringify(result, null, 2);
-
         try {
-            await navigator.clipboard.writeText(textToCopy);
+            if (
+                typeof result === 'object' &&
+                result !== null &&
+                'type' in result &&
+                result.type === 'image'
+            ) {
+                // Для изображений копируем промпт
+                const textToCopy = (result as ImageResult).prompt;
+                await navigator.clipboard.writeText(textToCopy);
+            } else {
+                const textToCopy =
+                    typeof result === 'string'
+                        ? result
+                        : JSON.stringify(result, null, 2);
+                await navigator.clipboard.writeText(textToCopy);
+            }
             setCopySuccess(true);
             setTimeout(() => setCopySuccess(false), 2000);
         } catch (err) {
@@ -471,13 +496,153 @@ export default function Home() {
                 }
 
                 setResult(telegramPostData.post);
+            } else if (action === 'Иллюстрация') {
+                if (!parsedArticle.content) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        new Error('Не удалось извлечь контент статьи'),
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
+
+                setProcessStage('Создаю промпт для изображения...');
+                let imagePromptResponse: Response;
+                try {
+                    imagePromptResponse = await fetch('/api/image-prompt', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            title: parsedArticle.title,
+                            content: parsedArticle.content,
+                            provider: apiProvider,
+                        }),
+                    });
+                } catch (fetchError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        fetchError,
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
+
+                let imagePromptData: any;
+                try {
+                    imagePromptData = await imagePromptResponse.json();
+                } catch (jsonError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        jsonError,
+                        imagePromptResponse.status,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
+
+                if (!imagePromptResponse.ok) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        imagePromptData.error ||
+                            'Ошибка при создании промпта для изображения',
+                        imagePromptResponse.status,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
+
+                setProcessStage('Генерирую изображение...');
+                let generateImageResponse: Response;
+                try {
+                    generateImageResponse = await fetch('/api/generate-image', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            prompt: imagePromptData.prompt,
+                        }),
+                    });
+                } catch (fetchError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        fetchError,
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
+
+                let generateImageData: any;
+                try {
+                    generateImageData = await generateImageResponse.json();
+                } catch (jsonError) {
+                    // Если не удалось распарсить JSON, пробуем получить текст
+                    let errorText = '';
+                    try {
+                        errorText = await generateImageResponse.text();
+                    } catch {
+                        // Игнорируем ошибку получения текста
+                    }
+                    const errorInfo = getFriendlyErrorMessage(
+                        errorText || jsonError,
+                        generateImageResponse.status,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
+
+                if (!generateImageResponse.ok) {
+                    // Используем реальное сообщение об ошибке из API
+                    const apiError = generateImageData?.error || 'Ошибка при генерации изображения';
+                    const errorInfo = getFriendlyErrorMessage(
+                        apiError,
+                        generateImageResponse.status,
+                        action
+                    );
+                    // Если есть конкретное сообщение от API, используем его
+                    const finalMessage = 
+                        typeof apiError === 'string' && 
+                        !apiError.includes('Произошла непредвиденная ошибка')
+                            ? apiError
+                            : errorInfo.message;
+                    setError(finalMessage);
+                    return;
+                }
+
+                setResult({
+                    type: 'image',
+                    image: generateImageData.image,
+                    prompt: generateImageData.prompt,
+                });
             } else {
                 // Для других действий показываем результат парсинга
                 setResult(parsedArticle);
             }
         } catch (err) {
-            const errorInfo = getFriendlyErrorMessage(err);
-            setError(errorInfo.message);
+            console.error('Ошибка в handleSubmit:', err);
+            // Пытаемся извлечь более детальную информацию об ошибке
+            let errorMessage = 'Произошла непредвиденная ошибка. Попробуйте еще раз.';
+            
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === 'string') {
+                errorMessage = err;
+            }
+            
+            const errorInfo = getFriendlyErrorMessage(err, undefined, activeButton || undefined);
+            // Используем более детальное сообщение, если оно есть
+            const finalMessage = 
+                errorMessage !== 'Произошла непредвиденная ошибка. Попробуйте еще раз.' &&
+                errorInfo.message === 'Произошла непредвиденная ошибка. Попробуйте еще раз.'
+                    ? errorMessage
+                    : errorInfo.message;
+            setError(finalMessage);
         } finally {
             setIsLoading(false);
             setActiveButton(null);
@@ -538,7 +703,7 @@ export default function Home() {
                     </div>
 
                     {/* Кнопки действий */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
                         <button
                             onClick={() => handleSubmit('О чем статья?')}
                             disabled={isLoading}
@@ -702,6 +867,47 @@ export default function Home() {
                                 'Перевести'
                             )}
                         </button>
+
+                        <button
+                            onClick={() => handleSubmit('Иллюстрация')}
+                            disabled={isLoading}
+                            title="Создать иллюстрацию на основе статьи"
+                            className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white transition-all duration-200 text-sm sm:text-base ${
+                                isLoading && activeButton === 'Иллюстрация'
+                                    ? 'bg-purple-400 cursor-wait'
+                                    : activeButton === 'Иллюстрация'
+                                    ? 'bg-purple-700'
+                                    : 'bg-purple-600 hover:bg-purple-700 active:scale-95'
+                            } disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg`}
+                        >
+                            {isLoading && activeButton === 'Иллюстрация' ? (
+                                <span className="flex items-center justify-center">
+                                    <svg
+                                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
+                                    </svg>
+                                    Генерация...
+                                </span>
+                            ) : (
+                                'Иллюстрация'
+                            )}
+                        </button>
                     </div>
 
                     {/* Кнопка очистки */}
@@ -798,6 +1004,8 @@ export default function Home() {
                                                 ? 'Выделение тезисов...'
                                                 : activeButton === 'Пост для Telegram'
                                                 ? 'Создание поста...'
+                                                : activeButton === 'Иллюстрация'
+                                                ? 'Генерация иллюстрации...'
                                                 : 'Парсинг статьи...'}
                                         </p>
                                     </div>
@@ -814,7 +1022,26 @@ export default function Home() {
                                 </Alert>
                             ) : result ? (
                                 <div className="prose max-w-none">
-                                    {typeof result === 'string' ? (
+                                    {typeof result === 'object' &&
+                                    result !== null &&
+                                    'type' in result &&
+                                    result.type === 'image' ? (
+                                        <div className="bg-white p-3 sm:p-4 rounded border">
+                                            <img
+                                                src={(result as ImageResult).image}
+                                                alt="Сгенерированная иллюстрация"
+                                                className="w-full h-auto rounded-lg mb-3 sm:mb-4"
+                                            />
+                                            <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-2 sm:p-3 rounded">
+                                                <p className="font-medium text-gray-700 mb-1">
+                                                    Промпт:
+                                                </p>
+                                                <p className="break-words">
+                                                    {(result as ImageResult).prompt}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : typeof result === 'string' ? (
                                         <div className="whitespace-pre-wrap break-words text-gray-800 font-sans text-xs sm:text-sm leading-relaxed bg-white p-3 sm:p-4 rounded border overflow-auto">
                                             {result}
                                         </div>
