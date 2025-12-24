@@ -20,6 +20,7 @@ export default function Home() {
     const [activeButton, setActiveButton] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [apiProvider, setApiProvider] = useState<ApiProvider>('perplexity');
+    const [processStage, setProcessStage] = useState<string>('');
 
     const handleSubmit = async (action: string) => {
         if (!url.trim()) {
@@ -31,6 +32,7 @@ export default function Home() {
         setActiveButton(action);
         setResult(null);
         setError(null);
+        setProcessStage('Загружаю статью...');
 
         try {
             // Сначала парсим статью
@@ -56,6 +58,7 @@ export default function Home() {
                     throw new Error('Не удалось извлечь контент статьи для перевода');
                 }
 
+                setProcessStage('Перевожу статью...');
                 const translateResponse = await fetch('/api/translate', {
                     method: 'POST',
                     headers: {
@@ -81,6 +84,7 @@ export default function Home() {
                     throw new Error('Не удалось извлечь контент статьи');
                 }
 
+                setProcessStage('Создаю резюме...');
                 const summarizeResponse = await fetch('/api/summarize', {
                     method: 'POST',
                     headers: {
@@ -107,6 +111,7 @@ export default function Home() {
                     throw new Error('Не удалось извлечь контент статьи');
                 }
 
+                setProcessStage('Выделяю тезисы...');
                 const thesesResponse = await fetch('/api/theses', {
                     method: 'POST',
                     headers: {
@@ -133,6 +138,7 @@ export default function Home() {
                     throw new Error('Не удалось извлечь контент статьи');
                 }
 
+                setProcessStage('Создаю пост для Telegram...');
                 const telegramPostResponse = await fetch('/api/telegram-post', {
                     method: 'POST',
                     headers: {
@@ -166,6 +172,7 @@ export default function Home() {
         } finally {
             setIsLoading(false);
             setActiveButton(null);
+            setProcessStage('');
         }
     };
 
@@ -212,10 +219,13 @@ export default function Home() {
                             type="url"
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
-                            placeholder="https://example.com/article"
+                            placeholder="Введите URL статьи, например: https://example.com/article"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
                             disabled={isLoading}
                         />
+                        <p className="mt-2 text-xs text-gray-500">
+                            Укажите ссылку на англоязычную статью
+                        </p>
                     </div>
 
                     {/* Кнопки действий */}
@@ -223,6 +233,7 @@ export default function Home() {
                         <button
                             onClick={() => handleSubmit('О чем статья?')}
                             disabled={isLoading}
+                            title="Получить краткое резюме статьи с помощью ИИ"
                             className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
                                 isLoading && activeButton === 'О чем статья?'
                                     ? 'bg-indigo-400 cursor-wait'
@@ -263,6 +274,7 @@ export default function Home() {
                         <button
                             onClick={() => handleSubmit('Тезисы')}
                             disabled={isLoading}
+                            title="Выделить основные тезисы и ключевые моменты статьи"
                             className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
                                 isLoading && activeButton === 'Тезисы'
                                     ? 'bg-indigo-400 cursor-wait'
@@ -303,6 +315,7 @@ export default function Home() {
                         <button
                             onClick={() => handleSubmit('Пост для Telegram')}
                             disabled={isLoading}
+                            title="Создать готовый пост для публикации в Telegram-канале"
                             className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
                                 isLoading && activeButton === 'Пост для Telegram'
                                     ? 'bg-indigo-400 cursor-wait'
@@ -343,6 +356,7 @@ export default function Home() {
                         <button
                             onClick={() => handleSubmit('Перевести')}
                             disabled={isLoading}
+                            title="Перевести статью с английского на русский язык"
                             className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
                                 isLoading && activeButton === 'Перевести'
                                     ? 'bg-green-400 cursor-wait'
@@ -380,6 +394,37 @@ export default function Home() {
                             )}
                         </button>
                     </div>
+
+                    {/* Блок текущего процесса */}
+                    {isLoading && (
+                        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                                <svg
+                                    className="animate-spin h-5 w-5 text-blue-600"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                                <p className="text-sm text-blue-800 font-medium">
+                                    {processStage || 'Загружаю статью...'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Блок результата */}
                     <div className="mt-8">
