@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Copy, X } from 'lucide-react';
 
 
 interface ParseResult {
@@ -142,6 +142,45 @@ export default function Home() {
     const [error, setError] = useState<string | null>(null);
     const [apiProvider, setApiProvider] = useState<ApiProvider>('perplexity');
     const [processStage, setProcessStage] = useState<string>('');
+    const [copySuccess, setCopySuccess] = useState(false);
+    const resultRef = useRef<HTMLDivElement>(null);
+
+    // Автоматическая прокрутка к результатам после успешной генерации
+    useEffect(() => {
+        if (result && !isLoading && resultRef.current) {
+            resultRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+        }
+    }, [result, isLoading]);
+
+    const handleClear = () => {
+        setUrl('');
+        setResult(null);
+        setError(null);
+        setIsLoading(false);
+        setActiveButton(null);
+        setProcessStage('');
+        setCopySuccess(false);
+    };
+
+    const handleCopy = async () => {
+        if (!result) return;
+
+        const textToCopy =
+            typeof result === 'string'
+                ? result
+                : JSON.stringify(result, null, 2);
+
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch (err) {
+            console.error('Ошибка при копировании:', err);
+        }
+    };
 
     const handleSubmit = async (action: string) => {
         if (!url.trim()) {
@@ -665,6 +704,19 @@ export default function Home() {
                         </button>
                     </div>
 
+                    {/* Кнопка очистки */}
+                    <div className="mb-6 flex justify-end">
+                        <button
+                            onClick={handleClear}
+                            disabled={isLoading}
+                            title="Очистить все поля и результаты"
+                            className="px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex items-center gap-2"
+                        >
+                            <X className="h-4 w-4" />
+                            Очистить
+                        </button>
+                    </div>
+
                     {/* Блок текущего процесса */}
                     {isLoading && (
                         <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -697,10 +749,22 @@ export default function Home() {
                     )}
 
                     {/* Блок результата */}
-                    <div className="mt-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                            Результат
-                        </h2>
+                    <div className="mt-8" ref={resultRef}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-semibold text-gray-800">
+                                Результат
+                            </h2>
+                            {result && !isLoading && (
+                                <button
+                                    onClick={handleCopy}
+                                    title="Копировать результат"
+                                    className="px-3 py-1.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2 text-sm"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                    {copySuccess ? 'Скопировано!' : 'Копировать'}
+                                </button>
+                            )}
+                        </div>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 min-h-[200px]">
                             {isLoading ? (
                                 <div className="flex items-center justify-center h-48">
