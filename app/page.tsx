@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 
 interface ParseResult {
@@ -11,6 +13,125 @@ interface ParseResult {
 
 
 type ApiProvider = 'openai' | 'perplexity' | 'openrouter';
+
+
+type ErrorType =
+    | 'parse_error'
+    | 'network_error'
+    | 'api_error'
+    | 'content_error'
+    | 'unknown_error';
+
+
+interface ErrorInfo {
+    type: ErrorType;
+    message: string;
+}
+
+
+function getFriendlyErrorMessage(
+    error: unknown,
+    responseStatus?: number,
+    action?: string
+): ErrorInfo {
+    // Ошибки сети (таймаут, нет соединения и т.д.)
+    if (
+        error instanceof TypeError ||
+        (error instanceof Error &&
+            (error.message.includes('fetch') ||
+                error.message.includes('network') ||
+                error.message.includes('Failed to fetch') ||
+                error.name === 'NetworkError' ||
+                error.name === 'AbortError'))
+    ) {
+        return {
+            type: 'network_error',
+            message: 'Не удалось загрузить статью по этой ссылке.',
+        };
+    }
+
+    // Ошибки парсинга статьи (404, 500, таймаут)
+    if (responseStatus !== undefined) {
+        if (responseStatus === 404) {
+            return {
+                type: 'parse_error',
+                message: 'Не удалось загрузить статью по этой ссылке.',
+            };
+        }
+        if (responseStatus >= 500) {
+            return {
+                type: 'parse_error',
+                message: 'Не удалось загрузить статью по этой ссылке.',
+            };
+        }
+        if (responseStatus === 408 || responseStatus === 504) {
+            return {
+                type: 'parse_error',
+                message: 'Не удалось загрузить статью по этой ссылке.',
+            };
+        }
+    }
+
+    // Ошибки из API
+    if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+
+        // Ошибки загрузки статьи
+        if (
+            errorMessage.includes('не удалось загрузить') ||
+            errorMessage.includes('парсинге') ||
+            errorMessage.includes('parse')
+        ) {
+            return {
+                type: 'parse_error',
+                message: 'Не удалось загрузить статью по этой ссылке.',
+            };
+        }
+
+        // Ошибки контента
+        if (
+            errorMessage.includes('контент') ||
+            errorMessage.includes('извлечь')
+        ) {
+            return {
+                type: 'content_error',
+                message: 'Не удалось извлечь содержимое статьи. Попробуйте другую ссылку.',
+            };
+        }
+
+        // Ошибки API (перевод, резюме и т.д.)
+        if (
+            errorMessage.includes('перевод') ||
+            errorMessage.includes('резюме') ||
+            errorMessage.includes('тезис') ||
+            errorMessage.includes('пост') ||
+            errorMessage.includes('api')
+        ) {
+            const actionMessages: Record<string, string> = {
+                Перевести: 'Не удалось перевести статью. Попробуйте позже.',
+                'О чем статья?':
+                    'Не удалось создать резюме статьи. Попробуйте позже.',
+                Тезисы: 'Не удалось выделить тезисы. Попробуйте позже.',
+                'Пост для Telegram':
+                    'Не удалось создать пост для Telegram. Попробуйте позже.',
+            };
+
+            return {
+                type: 'api_error',
+                message:
+                    action && actionMessages[action]
+                        ? actionMessages[action]
+                        : 'Произошла ошибка при обработке. Попробуйте позже.',
+            };
+        }
+    }
+
+    // Неизвестная ошибка
+    return {
+        type: 'unknown_error',
+        message: 'Произошла непредвиденная ошибка. Попробуйте еще раз.',
+    };
+}
 
 
 export default function Home() {
@@ -36,18 +157,40 @@ export default function Home() {
 
         try {
             // Сначала парсим статью
-            const parseResponse = await fetch('/api/parse', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ url: url.trim() }),
-            });
+            let parseResponse: Response;
+            try {
+                parseResponse = await fetch('/api/parse', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url.trim() }),
+                });
+            } catch (fetchError) {
+                const errorInfo = getFriendlyErrorMessage(fetchError);
+                setError(errorInfo.message);
+                return;
+            }
 
-            const parseData = await parseResponse.json();
+            let parseData: any;
+            try {
+                parseData = await parseResponse.json();
+            } catch (jsonError) {
+                const errorInfo = getFriendlyErrorMessage(
+                    jsonError,
+                    parseResponse.status
+                );
+                setError(errorInfo.message);
+                return;
+            }
 
             if (!parseResponse.ok) {
-                throw new Error(parseData.error || 'Ошибка при парсинге статьи');
+                const errorInfo = getFriendlyErrorMessage(
+                    parseData.error || 'Ошибка при парсинге статьи',
+                    parseResponse.status
+                );
+                setError(errorInfo.message);
+                return;
             }
 
             const parsedArticle = parseData as ParseResult;
@@ -55,109 +198,237 @@ export default function Home() {
             // Обработка различных действий
             if (action === 'Перевести') {
                 if (!parsedArticle.content) {
-                    throw new Error('Не удалось извлечь контент статьи для перевода');
+                    const errorInfo = getFriendlyErrorMessage(
+                        new Error('Не удалось извлечь контент статьи'),
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setProcessStage('Перевожу статью...');
-                const translateResponse = await fetch('/api/translate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        content: parsedArticle.content,
-                        provider: apiProvider,
-                    }),
-                });
+                let translateResponse: Response;
+                try {
+                    translateResponse = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            content: parsedArticle.content,
+                            provider: apiProvider,
+                        }),
+                    });
+                } catch (fetchError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        fetchError,
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
-                const translateData = await translateResponse.json();
+                let translateData: any;
+                try {
+                    translateData = await translateResponse.json();
+                } catch (jsonError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        jsonError,
+                        translateResponse.status,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
                 if (!translateResponse.ok) {
-                    throw new Error(
-                        translateData.error || 'Ошибка при переводе статьи'
+                    const errorInfo = getFriendlyErrorMessage(
+                        translateData.error || 'Ошибка при переводе статьи',
+                        translateResponse.status,
+                        action
                     );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setResult(translateData.translation);
             } else if (action === 'О чем статья?') {
                 if (!parsedArticle.content) {
-                    throw new Error('Не удалось извлечь контент статьи');
+                    const errorInfo = getFriendlyErrorMessage(
+                        new Error('Не удалось извлечь контент статьи'),
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setProcessStage('Создаю резюме...');
-                const summarizeResponse = await fetch('/api/summarize', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        title: parsedArticle.title,
-                        content: parsedArticle.content,
-                        provider: apiProvider,
-                    }),
-                });
+                let summarizeResponse: Response;
+                try {
+                    summarizeResponse = await fetch('/api/summarize', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            title: parsedArticle.title,
+                            content: parsedArticle.content,
+                            provider: apiProvider,
+                        }),
+                    });
+                } catch (fetchError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        fetchError,
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
-                const summarizeData = await summarizeResponse.json();
+                let summarizeData: any;
+                try {
+                    summarizeData = await summarizeResponse.json();
+                } catch (jsonError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        jsonError,
+                        summarizeResponse.status,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
                 if (!summarizeResponse.ok) {
-                    throw new Error(
-                        summarizeData.error || 'Ошибка при создании резюме'
+                    const errorInfo = getFriendlyErrorMessage(
+                        summarizeData.error || 'Ошибка при создании резюме',
+                        summarizeResponse.status,
+                        action
                     );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setResult(summarizeData.summary);
             } else if (action === 'Тезисы') {
                 if (!parsedArticle.content) {
-                    throw new Error('Не удалось извлечь контент статьи');
+                    const errorInfo = getFriendlyErrorMessage(
+                        new Error('Не удалось извлечь контент статьи'),
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setProcessStage('Выделяю тезисы...');
-                const thesesResponse = await fetch('/api/theses', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        title: parsedArticle.title,
-                        content: parsedArticle.content,
-                        provider: apiProvider,
-                    }),
-                });
+                let thesesResponse: Response;
+                try {
+                    thesesResponse = await fetch('/api/theses', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            title: parsedArticle.title,
+                            content: parsedArticle.content,
+                            provider: apiProvider,
+                        }),
+                    });
+                } catch (fetchError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        fetchError,
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
-                const thesesData = await thesesResponse.json();
+                let thesesData: any;
+                try {
+                    thesesData = await thesesResponse.json();
+                } catch (jsonError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        jsonError,
+                        thesesResponse.status,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
                 if (!thesesResponse.ok) {
-                    throw new Error(
-                        thesesData.error || 'Ошибка при выделении тезисов'
+                    const errorInfo = getFriendlyErrorMessage(
+                        thesesData.error || 'Ошибка при выделении тезисов',
+                        thesesResponse.status,
+                        action
                     );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setResult(thesesData.theses);
             } else if (action === 'Пост для Telegram') {
                 if (!parsedArticle.content) {
-                    throw new Error('Не удалось извлечь контент статьи');
+                    const errorInfo = getFriendlyErrorMessage(
+                        new Error('Не удалось извлечь контент статьи'),
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setProcessStage('Создаю пост для Telegram...');
-                const telegramPostResponse = await fetch('/api/telegram-post', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        title: parsedArticle.title,
-                        date: parsedArticle.date,
-                        content: parsedArticle.content,
-                        provider: apiProvider,
-                    }),
-                });
+                let telegramPostResponse: Response;
+                try {
+                    telegramPostResponse = await fetch('/api/telegram-post', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            title: parsedArticle.title,
+                            date: parsedArticle.date,
+                            content: parsedArticle.content,
+                            provider: apiProvider,
+                        }),
+                    });
+                } catch (fetchError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        fetchError,
+                        undefined,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
-                const telegramPostData = await telegramPostResponse.json();
+                let telegramPostData: any;
+                try {
+                    telegramPostData = await telegramPostResponse.json();
+                } catch (jsonError) {
+                    const errorInfo = getFriendlyErrorMessage(
+                        jsonError,
+                        telegramPostResponse.status,
+                        action
+                    );
+                    setError(errorInfo.message);
+                    return;
+                }
 
                 if (!telegramPostResponse.ok) {
-                    throw new Error(
-                        telegramPostData.error || 'Ошибка при создании поста'
+                    const errorInfo = getFriendlyErrorMessage(
+                        telegramPostData.error || 'Ошибка при создании поста',
+                        telegramPostResponse.status,
+                        action
                     );
+                    setError(errorInfo.message);
+                    return;
                 }
 
                 setResult(telegramPostData.post);
@@ -166,9 +437,8 @@ export default function Home() {
                 setResult(parsedArticle);
             }
         } catch (err) {
-            setError(
-                err instanceof Error ? err.message : 'Произошла ошибка'
-            );
+            const errorInfo = getFriendlyErrorMessage(err);
+            setError(errorInfo.message);
         } finally {
             setIsLoading(false);
             setActiveButton(null);
@@ -469,10 +739,15 @@ export default function Home() {
                                     </div>
                                 </div>
                             ) : error ? (
-                                <div className="text-red-600 text-center py-8">
-                                    <p className="font-medium">Ошибка:</p>
-                                    <p className="mt-2">{error}</p>
-                                </div>
+                                <Alert variant="destructive" className="border-red-200 bg-red-50">
+                                    <AlertCircle className="h-4 w-4 text-red-600" />
+                                    <AlertTitle className="text-red-800">
+                                        Ошибка
+                                    </AlertTitle>
+                                    <AlertDescription className="text-red-700">
+                                        {error}
+                                    </AlertDescription>
+                                </Alert>
                             ) : result ? (
                                 <div className="prose max-w-none">
                                     {typeof result === 'string' ? (
