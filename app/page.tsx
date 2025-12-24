@@ -488,13 +488,13 @@ export default function Home() {
     return (
         <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
-                <div className="mb-4 flex justify-start">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 shadow">
-                        <span className="text-sm text-gray-600">
+                <div className="mb-3 sm:mb-4 flex justify-start">
+                    <div className="inline-flex flex-wrap items-center gap-2 rounded-lg bg-white/80 px-2 sm:px-3 py-1.5 sm:py-2 shadow">
+                        <span className="text-xs sm:text-sm text-gray-600">
                             AI-провайдер:
                         </span>
                         <select
-                            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="rounded-md border border-gray-300 bg-white px-1.5 sm:px-2 py-1 text-xs sm:text-sm text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             value={apiProvider}
                             onChange={(event) =>
                                 setApiProvider(event.target.value as ApiProvider)
@@ -507,11 +507,11 @@ export default function Home() {
                         </select>
                     </div>
                 </div>
-                <div className="bg-white rounded-lg shadow-xl p-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 lg:p-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                         Referent
                     </h1>
-                    <p className="text-gray-600 mb-8">
+                    <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                         Референт - переводчик с ИИ-обработкой
                     </p>
 
@@ -529,7 +529,7 @@ export default function Home() {
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
                             placeholder="Введите URL статьи, например: https://example.com/article"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
+                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors text-sm sm:text-base"
                             disabled={isLoading}
                         />
                         <p className="mt-2 text-xs text-gray-500">
@@ -538,12 +538,12 @@ export default function Home() {
                     </div>
 
                     {/* Кнопки действий */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                         <button
                             onClick={() => handleSubmit('О чем статья?')}
                             disabled={isLoading}
                             title="Получить краткое резюме статьи с помощью ИИ"
-                            className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
+                            className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white transition-all duration-200 text-sm sm:text-base ${
                                 isLoading && activeButton === 'О чем статья?'
                                     ? 'bg-indigo-400 cursor-wait'
                                     : activeButton === 'О чем статья?'
@@ -584,7 +584,7 @@ export default function Home() {
                             onClick={() => handleSubmit('Тезисы')}
                             disabled={isLoading}
                             title="Выделить основные тезисы и ключевые моменты статьи"
-                            className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
+                            className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white transition-all duration-200 text-sm sm:text-base ${
                                 isLoading && activeButton === 'Тезисы'
                                     ? 'bg-indigo-400 cursor-wait'
                                     : activeButton === 'Тезисы'
@@ -625,7 +625,7 @@ export default function Home() {
                             onClick={() => handleSubmit('Пост для Telegram')}
                             disabled={isLoading}
                             title="Создать готовый пост для публикации в Telegram-канале"
-                            className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
+                            className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white transition-all duration-200 text-sm sm:text-base ${
                                 isLoading && activeButton === 'Пост для Telegram'
                                     ? 'bg-indigo-400 cursor-wait'
                                     : activeButton === 'Пост для Telegram'
@@ -666,7 +666,7 @@ export default function Home() {
                             onClick={() => handleSubmit('Перевести')}
                             disabled={isLoading}
                             title="Перевести статью с английского на русский язык"
-                            className={`px-6 py-3 rounded-lg font-medium text-white transition-all duration-200 ${
+                            className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white transition-all duration-200 text-sm sm:text-base ${
                                 isLoading && activeButton === 'Перевести'
                                     ? 'bg-green-400 cursor-wait'
                                     : activeButton === 'Перевести'
@@ -705,12 +705,12 @@ export default function Home() {
                     </div>
 
                     {/* Кнопка очистки */}
-                    <div className="mb-6 flex justify-end">
+                    <div className="mb-4 sm:mb-6 flex justify-center sm:justify-end">
                         <button
                             onClick={handleClear}
                             disabled={isLoading}
                             title="Очистить все поля и результаты"
-                            className="px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex items-center gap-2"
+                            className="w-full sm:w-auto px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-sm sm:text-base"
                         >
                             <X className="h-4 w-4" />
                             Очистить
@@ -719,10 +719,10 @@ export default function Home() {
 
                     {/* Блок текущего процесса */}
                     {isLoading && (
-                        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <div className="flex items-center gap-3">
+                        <div className="mb-4 sm:mb-6 bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                            <div className="flex items-center gap-2 sm:gap-3">
                                 <svg
-                                    className="animate-spin h-5 w-5 text-blue-600"
+                                    className="animate-spin h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0"
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"
                                     viewBox="0 0 24 24"
@@ -741,7 +741,7 @@ export default function Home() {
                                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                     ></path>
                                 </svg>
-                                <p className="text-sm text-blue-800 font-medium">
+                                <p className="text-xs sm:text-sm text-blue-800 font-medium break-words">
                                     {processStage || 'Загружаю статью...'}
                                 </p>
                             </div>
@@ -749,23 +749,23 @@ export default function Home() {
                     )}
 
                     {/* Блок результата */}
-                    <div className="mt-8" ref={resultRef}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-semibold text-gray-800">
+                    <div className="mt-6 sm:mt-8" ref={resultRef}>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+                            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
                                 Результат
                             </h2>
                             {result && !isLoading && (
                                 <button
                                     onClick={handleCopy}
                                     title="Копировать результат"
-                                    className="px-3 py-1.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2 text-sm"
+                                    className="w-full sm:w-auto px-3 py-1.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-xs sm:text-sm"
                                 >
-                                    <Copy className="h-4 w-4" />
+                                    <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
                                     {copySuccess ? 'Скопировано!' : 'Копировать'}
                                 </button>
                             )}
                         </div>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 min-h-[200px]">
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-6 min-h-[200px]">
                             {isLoading ? (
                                 <div className="flex items-center justify-center h-48">
                                     <div className="text-center">
@@ -804,28 +804,28 @@ export default function Home() {
                                 </div>
                             ) : error ? (
                                 <Alert variant="destructive" className="border-red-200 bg-red-50">
-                                    <AlertCircle className="h-4 w-4 text-red-600" />
-                                    <AlertTitle className="text-red-800">
+                                    <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                                    <AlertTitle className="text-red-800 text-sm sm:text-base">
                                         Ошибка
                                     </AlertTitle>
-                                    <AlertDescription className="text-red-700">
+                                    <AlertDescription className="text-red-700 text-xs sm:text-sm break-words">
                                         {error}
                                     </AlertDescription>
                                 </Alert>
                             ) : result ? (
                                 <div className="prose max-w-none">
                                     {typeof result === 'string' ? (
-                                        <div className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed bg-white p-4 rounded border overflow-auto">
+                                        <div className="whitespace-pre-wrap break-words text-gray-800 font-sans text-xs sm:text-sm leading-relaxed bg-white p-3 sm:p-4 rounded border overflow-auto">
                                             {result}
                                         </div>
                                     ) : (
-                                        <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed bg-white p-4 rounded border overflow-auto">
+                                        <pre className="whitespace-pre-wrap break-words text-gray-800 font-sans text-xs sm:text-sm leading-relaxed bg-white p-3 sm:p-4 rounded border overflow-auto">
                                             {JSON.stringify(result, null, 2)}
                                         </pre>
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-gray-400 text-center py-12">
+                                <p className="text-gray-400 text-center py-8 sm:py-12 text-sm sm:text-base">
                                     Результат обработки появится здесь
                                 </p>
                             )}
