@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
     try {
-        const { title, content } = await request.json();
+        const { title, content, provider } = await request.json();
 
         if (!content || typeof content !== 'string') {
             return NextResponse.json(
@@ -12,12 +12,43 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const apiKey = process.env.PERPLEXITY_API_KEY;
-        const baseUrl = process.env.PERPLEXITY_BASE_URL || 'https://api.perplexity.ai';
+        const apiProvider: 'openai' | 'perplexity' | 'openrouter' =
+            provider === 'openai'
+                ? 'openai'
+                : provider === 'openrouter'
+                ? 'openrouter'
+                : 'perplexity';
+
+        const apiKey =
+            apiProvider === 'openai'
+                ? process.env.OPENAI_API_KEY
+                : apiProvider === 'openrouter'
+                ? process.env.OPENROUTER_API_KEY
+                : process.env.PERPLEXITY_API_KEY;
+        const baseUrl =
+            apiProvider === 'openai'
+                ? process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+                : apiProvider === 'openrouter'
+                ? process.env.OPENROUTER_BASE_URL ||
+                  'https://openrouter.ai/api/v1'
+                : process.env.PERPLEXITY_BASE_URL || 'https://api.perplexity.ai';
+        const model =
+            apiProvider === 'openai'
+                ? process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+                : apiProvider === 'openrouter'
+                ? process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat'
+                : process.env.PERPLEXITY_MODEL || 'sonar-pro';
 
         if (!apiKey) {
             return NextResponse.json(
-                { error: 'API ключ Perplexity не настроен' },
+                {
+                    error:
+                        apiProvider === 'openai'
+                            ? 'API ключ OpenAI не настроен'
+                            : apiProvider === 'openrouter'
+                            ? 'API ключ OpenRouter не настроен'
+                            : 'API ключ Perplexity не настроен',
+                },
                 { status: 500 }
             );
         }
@@ -30,7 +61,8 @@ export async function POST(request: NextRequest) {
             ? `Заголовок: ${title}\n\nКонтент: ${content}`
             : `Контент: ${content}`;
 
-        const apiUrl = `${baseUrl}/chat/completions`;
+        const base = baseUrl.replace(/\/$/, '');
+        const apiUrl = `${base}/chat/completions`;
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -39,21 +71,20 @@ export async function POST(request: NextRequest) {
                 'Authorization': `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                model: 'sonar-pro',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: systemPrompt,
-                        },
-                        {
-                            role: 'user',
-                            content: userPrompt,
-                        },
-                    ],
-                    temperature: 0.3,
-                }),
-            }
-        );
+                model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: systemPrompt,
+                    },
+                    {
+                        role: 'user',
+                        content: userPrompt,
+                    },
+                ],
+                temperature: 0.3,
+            }),
+        });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -61,7 +92,7 @@ export async function POST(request: NextRequest) {
                 {
                     error:
                         errorData.error?.message ||
-                        `Ошибка API Perplexity: ${response.statusText}`,
+                        `Ошибка API: ${response.statusText}`,
                 },
                 { status: response.status }
             );

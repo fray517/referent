@@ -10,12 +10,16 @@ interface ParseResult {
 }
 
 
+type ApiProvider = 'openai' | 'perplexity' | 'openrouter';
+
+
 export default function Home() {
     const [url, setUrl] = useState('');
     const [result, setResult] = useState<ParseResult | string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [activeButton, setActiveButton] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [apiProvider, setApiProvider] = useState<ApiProvider>('perplexity');
 
     const handleSubmit = async (action: string) => {
         if (!url.trim()) {
@@ -57,7 +61,10 @@ export default function Home() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ content: parsedArticle.content }),
+                    body: JSON.stringify({
+                        content: parsedArticle.content,
+                        provider: apiProvider,
+                    }),
                 });
 
                 const translateData = await translateResponse.json();
@@ -82,6 +89,7 @@ export default function Home() {
                     body: JSON.stringify({
                         title: parsedArticle.title,
                         content: parsedArticle.content,
+                        provider: apiProvider,
                     }),
                 });
 
@@ -107,6 +115,7 @@ export default function Home() {
                     body: JSON.stringify({
                         title: parsedArticle.title,
                         content: parsedArticle.content,
+                        provider: apiProvider,
                     }),
                 });
 
@@ -133,6 +142,7 @@ export default function Home() {
                         title: parsedArticle.title,
                         date: parsedArticle.date,
                         content: parsedArticle.content,
+                        provider: apiProvider,
                     }),
                 });
 
@@ -162,6 +172,25 @@ export default function Home() {
     return (
         <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
+                <div className="mb-4 flex justify-start">
+                    <div className="inline-flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 shadow">
+                        <span className="text-sm text-gray-600">
+                            AI-провайдер:
+                        </span>
+                        <select
+                            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            value={apiProvider}
+                            onChange={(event) =>
+                                setApiProvider(event.target.value as ApiProvider)
+                            }
+                            disabled={isLoading}
+                        >
+                            <option value="openai">OPENAI_BASE_URL</option>
+                            <option value="perplexity">PERPLEXITY_BASE_URL</option>
+                            <option value="openrouter">OPENROUTER_BASE_URL</option>
+                        </select>
+                    </div>
+                </div>
                 <div className="bg-white rounded-lg shadow-xl p-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
                         Referent
