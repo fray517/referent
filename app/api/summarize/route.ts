@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSummaryPrompt, isSummaryLength } from '../../../lib/summary';
 
 
 export async function POST(request: NextRequest) {
     try {
-        const { title, content, provider } = await request.json();
+        const { title, content, provider, summaryLength = 'normal' } = await request.json();
 
         if (!content || typeof content !== 'string') {
             return NextResponse.json(
                 { error: 'Контент статьи обязателен' },
+                { status: 400 }
+            );
+        }
+
+        if (!isSummaryLength(summaryLength)) {
+            return NextResponse.json(
+                { error: 'Недопустимая длина резюме' },
                 { status: 400 }
             );
         }
@@ -54,8 +62,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Формируем промпт для создания резюме
-        const systemPrompt =
-            'Ты профессиональный аналитик. Прочитай следующую статью и создай краткое резюме на русском языке (2-3 абзаца), объясняющее основную тему и ключевые моменты статьи.';
+        const systemPrompt = getSummaryPrompt(summaryLength);
 
         const userPrompt = title
             ? `Заголовок: ${title}\n\nКонтент: ${content}`

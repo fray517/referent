@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Copy, X } from 'lucide-react';
+import type { SummaryLength } from '@/lib/summary';
 
 
 interface ParseResult {
@@ -156,6 +157,7 @@ export default function Home() {
     const [activeButton, setActiveButton] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [apiProvider, setApiProvider] = useState<ApiProvider>('perplexity');
+    const [summaryLength, setSummaryLength] = useState<SummaryLength>('normal');
     const [processStage, setProcessStage] = useState<string>('');
     const [copySuccess, setCopySuccess] = useState(false);
     const resultRef = useRef<HTMLDivElement>(null);
@@ -341,6 +343,7 @@ export default function Home() {
                             title: parsedArticle.title,
                             content: parsedArticle.content,
                             provider: apiProvider,
+                            summaryLength,
                         }),
                     });
                 } catch (fetchError) {
@@ -699,6 +702,27 @@ export default function Home() {
                         />
                         <p className="mt-2 text-xs text-gray-500">
                             Укажите ссылку на англоязычную статью
+                        </p>
+                    </div>
+
+                    <div className="mb-6">
+                        <label htmlFor="summary-length" className="block text-sm font-medium text-gray-700 mb-2">
+                            Длина резюме
+                        </label>
+                        <select
+                            id="summary-length"
+                            value={summaryLength}
+                            onChange={(event) => setSummaryLength(event.target.value as SummaryLength)}
+                            disabled={isLoading}
+                            aria-describedby="summary-length-hint"
+                            className="w-full sm:w-auto rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                            <option value="short">Кратко — один абзац</option>
+                            <option value="normal">Обычно — 2–3 абзаца</option>
+                            <option value="detailed">Подробно — 4–6 абзацев</option>
+                        </select>
+                        <p id="summary-length-hint" className="mt-2 text-xs text-gray-500">
+                            Применяется к кнопке «О чем статья?». Длина ответа может немного отличаться.
                         </p>
                     </div>
 
