@@ -6,7 +6,7 @@ export function isSummaryLength(value: unknown): value is SummaryLength {
 
 export function getSummaryPrompt(length: SummaryLength): string {
     const instructions: Record<SummaryLength, string> = {
-        short: 'Создай краткое резюме в одном абзаце (3-4 предложения). Передай только основную мысль и главные выводы.',
+        short: 'Создай краткое резюме в 4-6 абзацах. Передай только основную мысль и главные выводы.',
         normal: 'Создай резюме в 2-3 абзацах, объясняющее основную тему и ключевые моменты статьи.',
         detailed: 'Создай подробное резюме в 4-6 абзацах. Раскрой ключевые аргументы, важные детали и выводы статьи.',
     };
